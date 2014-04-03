@@ -125,7 +125,7 @@ class Jssh
             result=""
 			begin
 			Net::SSH.start(host,self.user,:keys=>keys,:password=>password) do |ssh|
-				result=ssh.exec!(self.cmd)
+				result=ssh.exec!(self.cmd) || ''
 			end
 			rescue=>e
 				result=e.to_s

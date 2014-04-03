@@ -42,7 +42,7 @@ OptionParser.new do |opts|
   opts.on("-f file","--hostfile file", "host file, every host occupy a line") do |v|
     options[:hostfile] = v
     unless File.exists? v
-	puts "host file doesn't exists!".to_red
+    	puts "host file doesn't exists!".to_red
 	exit
     end
   end
@@ -58,16 +58,13 @@ OptionParser.new do |opts|
   opts.on("-i keyfile", "the ssh id_rsa file") do |v|
     options[:key] = v
   end
-  opts.on("--nopause", "no pause for first operation") do |v|
-    options[:nopause] = v
+  opts.on("-b","--break", "pause after first operation") do |v|
+    options[:pause] = v
   end
-  opts.on("-c commands","--command commands", "commands") do |v|
-    options[:command] = v
-  end
-  opts.on("-C cmdfile","--cmdfile cmdfile", "script path") do |v|
+  opts.on("-c cmdfile","--cmdfile cmdfile", "script path") do |v|
     options[:cmdfile] = v
     unless File.exists? v
-	puts "command file doesn't exists!".to_red
+    	puts "command file doesn't exists!".to_red
 	exit
     end
   end
@@ -75,7 +72,12 @@ OptionParser.new do |opts|
       puts opts
       exit
   end
+  opts.on("--debug", "debug inputs") do |v|
+      options[:debug]=v
+  end
 end.parse!
+
+# If neither the rsa file or password specified, go get rsa file in home directory
 unless options[:key] || options[:password]
     if File.exists? ENV['HOME']+"/.jsshrc"
         config=YAML::load_file(ENV['HOME']+"/.jsshrc")
@@ -85,6 +87,19 @@ unless options[:key] || options[:password]
         options[:key]||=ENV['HOME']+'/.ssh/id_rsa'
     end
 end
+
+# If no script file, read command from command line
+options[:command]=ARGV.first if ARGV.size>0 && options[:cmdfile].nil?
+
+# If no user specified, use current user
+options[:user]||=ENV["USER"]
+
+if options[:debug]
+    puts "options: ".to_green+options.to_s
+    puts "ARGV: ".to_green+ARGV.to_s
+    exit
+end
+
 lambda{puts "No command or command file specify";exit}.call unless options[:cmdfile] || options[:command]
 lambda{puts "Please specify the user";exit}.call unless options[:user]
 lambda{puts "Please specify the rsa file or password";exit}.call unless options[:key] || options[:password]
@@ -96,15 +111,11 @@ class Jssh
 		@auth_cfg={}
         self.printer=:on
 		@queue=Queue.new
-		Thread.new(self) do |rssh|
-			while true
-				puts rssh.messages.pop if rssh.printer
-			end
-		end
 	end
     def messages
         @queue
     end
+    
 	def go(from=0,len=nil)
 		len||=self.hosts.size
         to=from+len-1
@@ -123,23 +134,31 @@ class Jssh
 		end
 	end
 	def execute(from=0,len=nil,group_size=10)
+        pr=start_printer(self)
 		threads=[]
 		len||=self.hosts.size
         to=from+len-1
 		divider(self.hosts[from..to].size,group_size) do |df,dt|
 			threads<<Thread.new(self,from+df,from+dt) do |rssh,f,t|
 				rssh.go(f,t) do |h,r|
-			        output="="*20+h+"="*20+"\n"+r
+			        output=("="*20+h+"="*20).to_yellow+"\n"+r
                     rssh.messages.push output
                 end
 			end
 		end	
-		while threads.find{|t| t.alive? }
-                sleep 1
-        end
+        threads.each{|t| t.join}
+        loop{ break if self.messages.size==0 } if  self.printer 
+        Thread.kill pr
 	end
 
 	private
+    def start_printer(jssh)
+		Thread.new(jssh) do |rssh|
+			while true
+				puts rssh.messages.pop if rssh.printer
+			end
+		end
+    end
 	def divider(total,gsize)
 		gcnt=total/gsize
 		gcnt=gcnt+1 if total%gsize!=0
@@ -165,7 +184,7 @@ if options[:cmdfile]
 else
 	rs.cmd=options[:command]
 end
-if options[:nopause]
+unless options[:pause]
     rs.hosts=orig_hosts
     rs.execute 0,nil,rs.hosts.size
     puts "Finished!".to_green
@@ -175,7 +194,7 @@ rs.hosts=orig_hosts.take 1
 rs.execute
 puts "Now the operations on the first host is completed, we're going to it for a check.".to_yellow
 print "Press ENTER to automatic to login #{rs.hosts.first.to_red} ..."
-gets
+$stdin.gets
 if options[:password]
         login_to_first=%Q|expect -c 'spawn ssh #{rs.user}@#{rs.hosts.first}
 expect {
@@ -190,7 +209,7 @@ else
 end
 system(login_to_first)
 print "Continue to finish all the left operations by parallel(p) or serial(s), [p/s] ".to_yellow
-ans=gets.chomp
+ans=$stdin.gets.chomp
 rs.hosts=orig_hosts[1..-1]
 if ans.downcase=='p'
 	rs.execute

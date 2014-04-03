@@ -20,7 +20,7 @@ Or install it yourself as:
 
 Simple Usage:
 
-	$ jssh -f hosts -u jason -p jason -c 'hostname' --nopause
+	$ jssh -f hosts -u jason -p jason  'hostname'
 	====================172.16.39.139====================
 	localcentos.vm
 	====================192.168.42.136====================
@@ -35,7 +35,7 @@ The hosts is a hosts file which lists every host per line like:
 
 If you have configured the trusted relationship with each host, you can simply use:
 
-	$ jssh -f hosts -u jason -c 'hostname' --nopause
+	$ jssh -f hosts -u jason 'hostname' 
 	
 Go further, if you place a file `~/.jsshrc`,and the content is:
 
@@ -44,15 +44,15 @@ Go further, if you place a file `~/.jsshrc`,and the content is:
 	
 Then you can get more easier:
 
-	$ jssh -f hosts -c 'hostname' --nopause
+	$ jssh -f hosts  'hostname' 
 	
 And, if you place multiple commands in a script such as `/path/to/script`, you can use like:
 
-	$ jssh -f hosts -C /path/to/script --nopause
+	$ jssh -f hosts -c /path/to/script 
 	
-At last, I think this is very charming for OP, we can use a batch tool with pause. Just remove the `--nopause` option:
+At last, I think this is very charming for OP, we can use a batch tool with pause. Just use the `-b or --break` option:
 
-	$ jssh -f hosts -c 'hostname'
+	$ jssh -f hosts  'hostname' -b
 	
 After the operation of the first host is done, the jssh can auto login to the first host, which lets us can check our operation is ok.
 

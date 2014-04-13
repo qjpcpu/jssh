@@ -39,6 +39,9 @@ op=OptionParser.new do |opts|
 	exit
     end
   end
+  opts.on("-o outputfile","--output outputfile", "output file") do |v|
+    options[:output] = v
+  end
   opts.on("--help", "help") do |v|
       puts opts
       exit
@@ -86,6 +89,8 @@ if options[:hostfile]
 else
 	orig_hosts=options[:hostlist].split(",")
 end
+rs.printer=File.open(options[:output],'a') if options[:output]
+
 rs.user=options[:user]
 rs.auth_cfg[:password]=options[:password]
 rs.auth_cfg[:key]=options[:key]
@@ -122,10 +127,11 @@ print "Continue to finish all the left operations by parallel(p) or serial(s), [
 ans=$stdin.gets.chomp
 rs.hosts=orig_hosts[1..-1]
 if ans.downcase=='p'
-    gs=options[:gsize]
+    gs=options[:gsize] || 10
     gs=10 if gs<1
 	rs.execute 0,nil,gs
 else
 	rs.execute 0,nil,rs.hosts.size
 end
+rs.printer.close if options[:output]
 puts 'Finished!'.to_green

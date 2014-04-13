@@ -6,7 +6,7 @@ class Jssh
     
 	def initialize
 		@auth_cfg={}
-        self.printer=:on
+        self.printer=$stdout
 		@queue=Queue.new
 	end
     def messages
@@ -52,7 +52,7 @@ class Jssh
     def start_printer(jssh)
 		Thread.new(jssh) do |rssh|
 			while true
-				puts rssh.messages.pop if rssh.printer
+				rssh.printer.puts rssh.messages.pop if rssh.printer
 			end
 		end
     end

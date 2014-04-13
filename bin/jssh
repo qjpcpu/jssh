@@ -5,7 +5,7 @@ require 'yaml'
 require "jssh"
 
 options = {}
-OptionParser.new do |opts|
+op=OptionParser.new do |opts|
   opts.banner = "Usage: jssh [options]"
   opts.on("-f file","--hostfile file", "host file, every host occupy a line") do |v|
     options[:hostfile] = v
@@ -46,7 +46,12 @@ OptionParser.new do |opts|
   opts.on("--debug", "debug inputs") do |v|
       options[:debug]=v
   end
-end.parse!
+end
+begin op.parse!
+rescue => e
+    puts e
+    exit
+end
 
 # If neither the rsa file or password specified, go get rsa file in home directory
 unless options[:key] || options[:password]

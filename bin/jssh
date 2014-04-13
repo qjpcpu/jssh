@@ -76,9 +76,9 @@ if options[:debug]
     exit
 end
 
-lambda{puts "No command or command file specify";exit}.call unless options[:cmdfile] || options[:command]
-lambda{puts "Please specify the user";exit}.call unless options[:user]
-lambda{puts "Please specify the rsa file or password";exit}.call unless options[:key] || options[:password]
+lambda{puts "No command or command file specify".to_red;exit}.call unless options[:cmdfile] || options[:command]
+lambda{puts "Please specify the user".to_red;exit}.call unless options[:user]
+lambda{puts "Please specify the rsa file or password".to_red;exit}.call unless options[:key] || options[:password]
 
 rs=Jssh.new
 if options[:hostfile]

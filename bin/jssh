@@ -89,7 +89,8 @@ if options[:hostfile]
 else
 	orig_hosts=options[:hostlist].split(",")
 end
-rs.printer=File.open(options[:output],'a') if options[:output]
+
+rs.printer=Printer.new(FileExecutor.new(options[:output])) if options[:output]
 
 rs.user=options[:user]
 rs.auth_cfg[:password]=options[:password]
@@ -105,6 +106,7 @@ unless options[:pause]
     puts "Finished!".to_green
     exit
 end
+
 rs.hosts=orig_hosts.take 1
 rs.execute
 puts "Now the operations on the first host is completed, we're going to it for a check.".to_yellow
@@ -127,11 +129,11 @@ print "Continue to finish all the left operations by parallel(p) or serial(s), [
 ans=$stdin.gets.chomp
 rs.hosts=orig_hosts[1..-1]
 if ans.downcase=='p'
-    gs=options[:gsize] || 10
-    gs=10 if gs<1
+    options[:gsize]= rs.hosts.size/100 if options[:gsize].nil? || rs.hosts.size/options[:gsize]>100 || options[:gsize]<1
+    gs=options[:gsize]==0 ? 1 : options[:gsize] 
+    rs.printer.instant=false
 	rs.execute 0,nil,gs
 else
 	rs.execute 0,nil,rs.hosts.size
 end
-rs.printer.close if options[:output]
 puts 'Finished!'.to_green

@@ -1,4 +1,5 @@
 require "jssh/version"
+require "jssh/printer"
 require 'jssh/string'
 
 class Jssh
@@ -6,7 +7,7 @@ class Jssh
     
 	def initialize
 		@auth_cfg={}
-        self.printer=$stdout
+        self.printer=Printer.new(StdoutExecutor.new)
 		@queue=Queue.new
 	end
     def messages
@@ -19,40 +20,45 @@ class Jssh
 		password=self.auth_cfg[:password]
         keys=[self.auth_cfg[:key]].reject{|x| x.nil?}
 		self.hosts[from..to].each_with_index do |host,i|
-            result=""
 			begin
 			Net::SSH.start(host,self.user,:keys=>keys,:password=>password) do |ssh|
 				result=ssh.exec!(self.cmd) || ''
+				ssh.exec!(self.cmd) do |ch,stream,data|
+                    data||=''
+                    yield host,data,false if block_given?
+                end
 			end
 			rescue=>e
-				result=e.to_s
+                result=e.to_s
 			end
-			yield host,result if block_given?
+            result||=''
+            yield host,result,true  if block_given?
 		end
 	end
-	def execute(from=0,len=nil,group_size=10)
+	def execute(from=0,len=nil,group_size=1)
         pr=start_printer(self)
 		threads=[]
 		len||=self.hosts.size
         to=from+len-1
 		divider(self.hosts[from..to].size,group_size) do |df,dt|
 			threads<<Thread.new(self,from+df,from+dt) do |rssh,f,t|
-				rssh.go(f,t) do |h,r|
-			        output=("="*20+h+"="*20).to_yellow+"\n"+r
-                    rssh.messages.push output
+				rssh.go(f,t) do |h,r,over|
+                    rssh.messages.push({'host'=>h,'content'=>r,'finished'=>over})
                 end
 			end
 		end	
         threads.each{|t| t.join}
-        loop{ break if self.messages.size==0 } if  self.printer 
+        loop{ break if self.printer.finished? }
         Thread.kill pr
 	end
 
 	private
     def start_printer(jssh)
+        jssh.printer.submit_jobs(jssh.hosts)
 		Thread.new(jssh) do |rssh|
-			while true
-				rssh.printer.puts rssh.messages.pop if rssh.printer
+            while true
+			    data=rssh.messages.pop
+				rssh.printer.print data['host'],data['content'],data['finished']
 			end
 		end
     end
@@ -61,7 +67,7 @@ class Jssh
 		gcnt=gcnt+1 if total%gsize!=0
 		gcnt.times do |i|
 			from,len=i*gsize,gsize
-			len=total%gsize if i==gcnt-1
+			len=total%gsize if i==gcnt-1 && total%gsize!=0
 			yield from,len
 		end
 	end

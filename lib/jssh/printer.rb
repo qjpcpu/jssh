@@ -1,4 +1,4 @@
-class Printer
+class PrinterController
     attr_accessor :instant
     def initialize(executor)
         self.instant=true
@@ -24,12 +24,12 @@ class Printer
     end
 end
 
-class StdoutExecutor
+class StdoutPrinter
     def puts(str)
         $stdout.puts str
     end
 end
-class FileExecutor
+class FilePrinter
     def initialize(filename)
         @file=File.open(filename,'a')
     end
@@ -37,7 +37,7 @@ class FileExecutor
         @file.puts str
     end
 end
-class NullExecutor
+class NullPrinter
     def puts(str)
         #Do nothing
     end

@@ -29,6 +29,9 @@ op=OptionParser.new do |opts|
   opts.on("-b","--break", "pause after first operation") do |v|
     options[:pause] = v
   end
+  opts.on("--parallel", "parallel execution") do |v|
+    options[:parallel] = v
+  end
   opts.on("-g gsize","--groupsize gsize",OptionParser::OctalInteger, "The size of parallel group, default is 10") do |v|
     options[:gsize] = v 
   end
@@ -43,7 +46,9 @@ op=OptionParser.new do |opts|
     options[:output] = v
   end
   opts.on("--help", "help") do |v|
+      puts "Jssh wanna make life easier, hope you enjoy it!".to_green
       puts opts
+      puts "Any suggestions or problems are welcomed.\nPlease mail to ".to_white+"Jianping,Qu <qujianping@baidu.com>".to_yellow
       exit
   end
   opts.on("--debug", "debug inputs") do |v|
@@ -67,6 +72,9 @@ unless options[:key] || options[:password]
     end
 end
 
+# If executes as parallel, disable break
+options[:pause]=nil if options[:parallel]
+
 # If no script file, read command from command line
 options[:command]=ARGV.first if ARGV.size>0 && options[:cmdfile].nil?
 
@@ -83,15 +91,15 @@ lambda{puts "No command or command file specify".to_red;exit}.call unless option
 lambda{puts "Please specify the user".to_red;exit}.call unless options[:user]
 lambda{puts "Please specify the rsa file or password".to_red;exit}.call unless options[:key] || options[:password]
 
-rs=Jssh.new
 if options[:hostfile]
-	orig_hosts=File.read(options[:hostfile]).split("\n")
+	orig_hosts=File.read(options[:hostfile]).gsub(/ /,'').split("\n")
 else
 	orig_hosts=options[:hostlist].split(",")
 end
 
-rs.printer=Printer.new(FileExecutor.new(options[:output])) if options[:output]
 
+rs=Jssh.new
+rs.printer=PrinterController.new(FilePrinter.new(options[:output])) if options[:output]
 rs.user=options[:user]
 rs.auth_cfg[:password]=options[:password]
 rs.auth_cfg[:key]=options[:key]
@@ -100,9 +108,16 @@ if options[:cmdfile]
 else
 	rs.cmd=options[:command]
 end
+
 unless options[:pause]
     rs.hosts=orig_hosts
-    rs.execute 0,nil,rs.hosts.size
+    gs=rs.hosts.size
+    if options[:parallel]
+        options[:gsize]= rs.hosts.size/100 if options[:gsize].nil? || rs.hosts.size/options[:gsize]>100 || options[:gsize]<1
+        gs=options[:gsize]==0 ? 1 : options[:gsize] 
+        rs.printer.instant=false
+    end
+    rs.execute 0,nil,gs
     puts "Finished!".to_green
     exit
 end

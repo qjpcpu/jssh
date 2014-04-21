@@ -7,7 +7,7 @@ class Jssh
     
 	def initialize
 		@auth_cfg={}
-        self.printer=Printer.new(StdoutExecutor.new)
+        self.printer=PrinterController.new(StdoutPrinter.new)
 		@queue=Queue.new
 	end
     def messages

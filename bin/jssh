@@ -29,7 +29,7 @@ op=OptionParser.new do |opts|
   opts.on("-b","--break", "pause after first operation") do |v|
     options[:pause] = v
   end
-  opts.on("--parallel", "parallel execution") do |v|
+  opts.on("-l","--parallel", "parallel execution") do |v|
     options[:parallel] = v
   end
   opts.on("-g gsize","--groupsize gsize",OptionParser::OctalInteger, "The size of parallel group, default is 10") do |v|
